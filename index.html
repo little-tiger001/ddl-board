@@ -376,25 +376,23 @@
 
   function setLang(l) {
     curLang = l;
-    if (diagEl) diagEl.textContent = 'v1.6.4 · ' + curLang;
+    if (diagEl) diagEl.textContent = 'v1.6.5 · ' + curLang;
   }
 
-  // iframe 桥接层里 getCurrentLanguage() 实际返回 Promise（类型文件标注为同步，不可信），
-  // 因此这里统一按异步处理；同步返回值也能被 Promise.resolve 兼容。
-  function refreshLang() {
+  // 语言判定（依据宿主 v19.2.0 源码）：
+  // - 显式选择语言时 localization.lng 为语言码；
+  // - "System default" 时 lng 为 undefined，此时用系统区域 navigator.language；
+  // - 切到/切回 System default 都不派发 languageChange 钩子，故保留周期自检兜底。
+  function detectLang() {
     return Promise.resolve()
-      .then(function () {
-        if (typeof PluginAPI !== 'undefined' && typeof PluginAPI.getCurrentLanguage === 'function') {
-          return PluginAPI.getCurrentLanguage();
-        }
-        return null;
+      .then(function () { return PluginAPI.getAppState(); })
+      .then(function (st) {
+        var loc = st && st.globalConfig && st.globalConfig.localization;
+        var lng = loc && loc.lng;
+        if (typeof lng !== 'string' || !lng) lng = navigator.language || 'en';
+        setLang(String(lng).toLowerCase().indexOf('zh') === 0 ? 'zh' : 'en');
       })
-      .then(function (code) {
-        if (typeof code === 'string' && code) {
-          setLang(code.indexOf('zh') === 0 ? 'zh' : 'en');
-        }
-      })
-      .catch(function () { /* 保持当前语言 */ });
+      .catch(function () { setLang('en'); });
   }
 
   function tr(key, params) {
@@ -841,9 +839,8 @@
     }
     buildSwatches();
     diagEl = document.getElementById('diag');
-    refreshLang()
+    detectLang()
       .then(function () {
-        setLang(curLang);
         applyStaticStrings();
         return ensureTag().then(loadColors).then(reload);
       })
@@ -862,25 +859,20 @@
         });
         try {
           // 钩子的 payload 直接带新语言码（宿主 effects 里 {code, newLanguage}），
-          // 用它切语言不依赖任何桥接调用
+          // 显式语言切换走这里即时生效
           PluginAPI.registerHook(H.LANGUAGE_CHANGE, function (payload) {
             var code = payload && (payload.code || payload.newLanguage);
             if (typeof code === 'string' && code) {
-              setLang(code.indexOf('zh') === 0 ? 'zh' : 'en');
+              setLang(code.toLowerCase().indexOf('zh') === 0 ? 'zh' : 'en');
               applyStaticStrings();
               render();
-            } else {
-              refreshLang().then(function () {
-                applyStaticStrings();
-                render();
-              });
             }
           });
         } catch (e) { /* 宿主不支持时忽略 */ }
-        // 兜底轮询（临时，用于确认钩子是否真的到达 iframe）
+        // "System default" 的进出不派发钩子，周期自检是唯一可靠通道
         setInterval(function () {
           var prev = curLang;
-          refreshLang().then(function () {
+          detectLang().then(function () {
             if (curLang !== prev) {
               applyStaticStrings();
               render();
