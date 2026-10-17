@@ -234,7 +234,6 @@
   <button id="next">›</button>
   <button id="todayBtn"></button>
   <span class="spacer"></span>
-  <span id="diag" style="font-size:11px;color:var(--muted)"></span>
   <button id="colorBtn"></button>
 </header>
 
@@ -372,11 +371,9 @@
     },
   };
   var curLang = 'en';
-  var diagEl = null;
 
   function setLang(l) {
     curLang = l;
-    if (diagEl) diagEl.textContent = 'v1.6.5 · ' + curLang;
   }
 
   // 语言判定（依据宿主 v19.2.0 源码）：
@@ -838,7 +835,6 @@
       return;
     }
     buildSwatches();
-    diagEl = document.getElementById('diag');
     detectLang()
       .then(function () {
         applyStaticStrings();
