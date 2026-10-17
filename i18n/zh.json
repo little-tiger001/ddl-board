@@ -1,6 +1,6 @@
 {
   "PLUGIN": {
-    "NAME": "DDL 待办看板",
+    "NAME": "DDL Board",
     "DESCRIPTION": "月历看板：只显示带截止日期的待办（打 DDL 标签的任务），格内新建、点击编辑、逾期高亮、配色自定义。"
   },
   "UI": {

@@ -1,6 +1,6 @@
 {
   "PLUGIN": {
-    "NAME": "DDL Todo Board",
+    "NAME": "DDL Board",
     "DESCRIPTION": "Month-calendar board that shows only deadline todos (DDL-tagged tasks): in-cell create, click-to-edit, overdue highlighting and customizable colors."
   },
   "UI": {

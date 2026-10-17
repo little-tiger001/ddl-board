@@ -1,4 +1,4 @@
-# DDL Todo Board
+# DDL Board
 
 A month-calendar board plugin for [Super Productivity](https://github.com/super-productivity/super-productivity). It shows **only deadline todos** — tasks carrying the `DDL` tag with a due date/time — so hard deadlines never get buried among routine tasks, while those todos still behave as regular tasks everywhere else in the app.
 
@@ -16,13 +16,13 @@ A month-calendar board plugin for [Super Productivity](https://github.com/super-
 
 English UI — month board with deadline todos; completed items greyed and sunk to the bottom of their day, overdue items in red:
 
-![DDL Todo Board (English UI)](docs/screenshot-en.png)
+![DDL Board (English UI)](docs/screenshot-en.png)
 
 ## Install
 
 1. Download `ddl-todos-board.zip` from the [latest release](https://github.com/little-tiger001/ddl-todos-board/releases).
 2. In Super Productivity: **Settings → Plugins → Choose Plugin File**, pick the zip.
-3. Open **DDL Todo Board** from the left sidebar.
+3. Open **DDL Board** from the left sidebar.
 
 Requires Super Productivity ≥ 13.0.0 (developed and tested on 19.2.0).
 
