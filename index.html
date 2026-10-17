@@ -289,62 +289,102 @@
   var popTaskId = null;
 
   // ---- 国际化 ----
-  // 注意：iframe 桥接层里 PluginAPI.translate() 返回 Promise（异步），
-  // 因此启动时把所有键翻译进 STR 缓存，运行期同步取用；参数替换在本地完成。
-  var EN_FALLBACK = {
-    'PLUGIN.NAME': 'DDL Todo Board',
-    'UI.PREV_MONTH': 'Previous month',
-    'UI.NEXT_MONTH': 'Next month',
-    'UI.BACK_TO_TODAY': 'Back to current month',
-    'UI.COLORS': 'Colors',
-    'UI.WD_1': 'Mon', 'UI.WD_2': 'Tue', 'UI.WD_3': 'Wed', 'UI.WD_4': 'Thu',
-    'UI.WD_5': 'Fri', 'UI.WD_6': 'Sat', 'UI.WD_7': 'Sun',
-    'UI.MN_1': 'Jan', 'UI.MN_2': 'Feb', 'UI.MN_3': 'Mar', 'UI.MN_4': 'Apr',
-    'UI.MN_5': 'May', 'UI.MN_6': 'Jun', 'UI.MN_7': 'Jul', 'UI.MN_8': 'Aug',
-    'UI.MN_9': 'Sep', 'UI.MN_10': 'Oct', 'UI.MN_11': 'Nov', 'UI.MN_12': 'Dec',
-    'UI.MONTH_LABEL': '{{monthName}} {{year}}',
-    'UI.EMPTY': 'No DDL todos this month. Hover a day cell and click the + to create one.',
-    'UI.POP_CREATE': 'New todo',
-    'UI.POP_EDIT': 'Edit todo',
-    'UI.TITLE_PLACEHOLDER': 'Todo title (required)',
-    'UI.DATE_TITLE': 'Due date (required)',
-    'UI.TIME_TITLE': 'Due time (optional; empty = all day)',
-    'UI.CANCEL': 'Cancel',
-    'UI.CONFIRM': 'OK',
-    'UI.COLORS_TODO': 'Todos',
-    'UI.COLORS_DONE': 'Completed',
-    'UI.TOOLTIP_ADD': 'New todo on {{date}}',
-    'UI.TOOLTIP_EDIT': 'Click to edit',
-    'UI.TOOLTIP_DELETE': 'Delete this todo',
-    'UI.TOOLTIP_DONE': 'Mark done',
-    'UI.TOOLTIP_UNDONE': 'Mark not done',
-    'UI.DUE_WITH_TIME': 'Due: {{date}} {{time}}',
-    'UI.DUE_ALLDAY': 'Due: {{date}} (all day)',
-    'UI.CONFIRM_DELETE': 'Delete todo "{{title}}"? This deletes the underlying task.',
-    'MSG.NO_API': 'PluginAPI not found: open this plugin inside Super Productivity.',
-    'MSG.LOAD_FAIL': 'Failed to load tasks: {{msg}}',
-    'MSG.UPDATE_FAIL': 'Update failed: {{msg}}',
-    'MSG.DELETE_FAIL': 'Delete failed: {{msg}}',
-    'MSG.CREATE_FAIL': 'Create failed: {{msg}}',
-    'MSG.SAVE_FAIL': 'Save failed: {{msg}}',
-    'MSG.INIT_FAIL': 'Initialization failed: {{msg}}',
+  // 宿主在语言切换后不会重新合并插件 i18n 文案（translate 会返回加载时的旧语言），
+  // 因此运行期不依赖 translate：用 getCurrentLanguage() 判定语言，直接切内置词典。
+  // i18n/*.json 仍保留，供宿主设置页展示支持的语言与插件元信息。
+  var DICTS = {
+    en: {
+      'PLUGIN.NAME': 'DDL Todo Board',
+      'UI.PREV_MONTH': 'Previous month',
+      'UI.NEXT_MONTH': 'Next month',
+      'UI.BACK_TO_TODAY': 'Back to current month',
+      'UI.COLORS': 'Colors',
+      'UI.WD_1': 'Mon', 'UI.WD_2': 'Tue', 'UI.WD_3': 'Wed', 'UI.WD_4': 'Thu',
+      'UI.WD_5': 'Fri', 'UI.WD_6': 'Sat', 'UI.WD_7': 'Sun',
+      'UI.MN_1': 'Jan', 'UI.MN_2': 'Feb', 'UI.MN_3': 'Mar', 'UI.MN_4': 'Apr',
+      'UI.MN_5': 'May', 'UI.MN_6': 'Jun', 'UI.MN_7': 'Jul', 'UI.MN_8': 'Aug',
+      'UI.MN_9': 'Sep', 'UI.MN_10': 'Oct', 'UI.MN_11': 'Nov', 'UI.MN_12': 'Dec',
+      'UI.MONTH_LABEL': '{{monthName}} {{year}}',
+      'UI.EMPTY': 'No DDL todos this month. Hover a day cell and click the + to create one.',
+      'UI.POP_CREATE': 'New todo',
+      'UI.POP_EDIT': 'Edit todo',
+      'UI.TITLE_PLACEHOLDER': 'Todo title (required)',
+      'UI.DATE_TITLE': 'Due date (required)',
+      'UI.TIME_TITLE': 'Due time (optional; empty = all day)',
+      'UI.CANCEL': 'Cancel',
+      'UI.CONFIRM': 'OK',
+      'UI.COLORS_TODO': 'Todos',
+      'UI.COLORS_DONE': 'Completed',
+      'UI.TOOLTIP_ADD': 'New todo on {{date}}',
+      'UI.TOOLTIP_EDIT': 'Click to edit',
+      'UI.TOOLTIP_DELETE': 'Delete this todo',
+      'UI.TOOLTIP_DONE': 'Mark done',
+      'UI.TOOLTIP_UNDONE': 'Mark not done',
+      'UI.DUE_WITH_TIME': 'Due: {{date}} {{time}}',
+      'UI.DUE_ALLDAY': 'Due: {{date}} (all day)',
+      'UI.CONFIRM_DELETE': 'Delete todo "{{title}}"? This deletes the underlying task.',
+      'MSG.NO_API': 'PluginAPI not found: open this plugin inside Super Productivity.',
+      'MSG.LOAD_FAIL': 'Failed to load tasks: {{msg}}',
+      'MSG.UPDATE_FAIL': 'Update failed: {{msg}}',
+      'MSG.DELETE_FAIL': 'Delete failed: {{msg}}',
+      'MSG.CREATE_FAIL': 'Create failed: {{msg}}',
+      'MSG.SAVE_FAIL': 'Save failed: {{msg}}',
+      'MSG.INIT_FAIL': 'Initialization failed: {{msg}}',
+    },
+    zh: {
+      'PLUGIN.NAME': 'DDL 待办看板',
+      'UI.PREV_MONTH': '上个月',
+      'UI.NEXT_MONTH': '下个月',
+      'UI.BACK_TO_TODAY': '回到今月',
+      'UI.COLORS': '配色',
+      'UI.WD_1': '一', 'UI.WD_2': '二', 'UI.WD_3': '三', 'UI.WD_4': '四',
+      'UI.WD_5': '五', 'UI.WD_6': '六', 'UI.WD_7': '日',
+      'UI.MN_1': '1月', 'UI.MN_2': '2月', 'UI.MN_3': '3月', 'UI.MN_4': '4月',
+      'UI.MN_5': '5月', 'UI.MN_6': '6月', 'UI.MN_7': '7月', 'UI.MN_8': '8月',
+      'UI.MN_9': '9月', 'UI.MN_10': '10月', 'UI.MN_11': '11月', 'UI.MN_12': '12月',
+      'UI.MONTH_LABEL': '{{year}}年{{monthName}}',
+      'UI.EMPTY': '本月没有 DDL 待办。把鼠标移到某天格子上，点右上角的 ＋ 即可新建。',
+      'UI.POP_CREATE': '新建待办',
+      'UI.POP_EDIT': '编辑待办',
+      'UI.TITLE_PLACEHOLDER': '待办标题（必填）',
+      'UI.DATE_TITLE': '截止日期（必填）',
+      'UI.TIME_TITLE': '截止时间（可选，不填则为全天）',
+      'UI.CANCEL': '取消',
+      'UI.CONFIRM': '确认',
+      'UI.COLORS_TODO': '待办',
+      'UI.COLORS_DONE': '已完成',
+      'UI.TOOLTIP_ADD': '在 {{date}} 新建待办',
+      'UI.TOOLTIP_EDIT': '点击编辑',
+      'UI.TOOLTIP_DELETE': '删除此待办',
+      'UI.TOOLTIP_DONE': '标记完成',
+      'UI.TOOLTIP_UNDONE': '取消完成',
+      'UI.DUE_WITH_TIME': '截止：{{date}} {{time}}',
+      'UI.DUE_ALLDAY': '截止：{{date}}（全天）',
+      'UI.CONFIRM_DELETE': '删除待办「{{title}}」？此操作会删除对应任务。',
+      'MSG.NO_API': '未检测到 PluginAPI：请在 Super Productivity 中打开本插件页面。',
+      'MSG.LOAD_FAIL': '读取任务失败：{{msg}}',
+      'MSG.UPDATE_FAIL': '更新失败：{{msg}}',
+      'MSG.DELETE_FAIL': '删除失败：{{msg}}',
+      'MSG.CREATE_FAIL': '新建失败：{{msg}}',
+      'MSG.SAVE_FAIL': '保存失败：{{msg}}',
+      'MSG.INIT_FAIL': '初始化失败：{{msg}}',
+    },
   };
-  var STR = {};
-  Object.keys(EN_FALLBACK).forEach(function (k) { STR[k] = EN_FALLBACK[k]; });
+  var curLang = 'en';
 
-  function loadStrings() {
-    if (typeof PluginAPI === 'undefined' || typeof PluginAPI.translate !== 'function') {
-      return Promise.resolve();
-    }
-    return Promise.all(Object.keys(EN_FALLBACK).map(function (k) {
-      return Promise.resolve(PluginAPI.translate(k)).then(function (v) {
-        if (typeof v === 'string' && v && v !== k) STR[k] = v;
-      }).catch(function () { /* 保留英文回退 */ });
-    }));
+  function refreshLang() {
+    var code = 'en';
+    try {
+      if (typeof PluginAPI !== 'undefined' && typeof PluginAPI.getCurrentLanguage === 'function') {
+        code = PluginAPI.getCurrentLanguage() || 'en';
+      }
+    } catch (e) { /* 回退英文 */ }
+    curLang = String(code).indexOf('zh') === 0 ? 'zh' : 'en';
   }
 
   function tr(key, params) {
-    var s = STR[key] || EN_FALLBACK[key] || key;
+    var dict = DICTS[curLang] || DICTS.en;
+    var s = dict[key] || DICTS.en[key] || key;
     if (params) {
       Object.keys(params).forEach(function (p) {
         s = s.split('{{' + p + '}}').join(String(params[p]));
@@ -785,11 +825,11 @@
       return;
     }
     buildSwatches();
-    loadStrings()
-      .then(function () {
-        applyStaticStrings();
-        return ensureTag().then(loadColors).then(reload);
-      })
+    refreshLang();
+    applyStaticStrings();
+    ensureTag()
+      .then(loadColors)
+      .then(reload)
       .then(function () {
         var H = PluginAPI.Hooks;
         var pending = null;
@@ -805,10 +845,9 @@
         });
         try {
           PluginAPI.registerHook(H.LANGUAGE_CHANGE, function () {
-            loadStrings().then(function () {
-              applyStaticStrings();
-              render();
-            });
+            refreshLang();
+            applyStaticStrings();
+            render();
           });
         } catch (e) { /* 宿主不支持时忽略 */ }
       })

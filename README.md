@@ -24,7 +24,7 @@ Requires Super Productivity ≥ 13.0.0 (developed and tested on 19.2.0).
 
 - The board lives in the main content area as its own view (left-sidebar entry), not in the built-in Schedule view — plugins cannot modify core views.
 - The `DDL` tag is created automatically on first run and its id is remembered, so renaming the tag later is safe.
-- The UI follows the Super Productivity interface language (English and Simplified Chinese are bundled via the plugin `i18n/` folder; switching the app language live-updates the board).
+- The UI follows the Super Productivity interface language (English and Simplified Chinese). The board reads the current language via `getCurrentLanguage()` and swaps its embedded dictionaries on `languageChange`; the `i18n/` files mirror those dictionaries for host-side metadata.
 
 ## Development
 
