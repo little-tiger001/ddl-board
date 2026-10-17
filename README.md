@@ -16,7 +16,7 @@ A month-calendar board plugin for [Super Productivity](https://github.com/super-
 
 1. Download `ddl-todos-board.zip` from the [latest release](https://github.com/little-tiger001/ddl-todos-board/releases).
 2. In Super Productivity: **Settings → Plugins → Choose Plugin File**, pick the zip.
-3. Open **DDL 待办看板** from the left sidebar.
+3. Open **DDL Todo Board** from the left sidebar.
 
 Requires Super Productivity ≥ 13.0.0 (developed and tested on 19.2.0).
 

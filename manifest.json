@@ -1,8 +1,8 @@
 {
-  "name": "DDL 待办看板",
+  "name": "DDL Todo Board",
   "id": "ddl-todos-board",
   "manifestVersion": 1,
-  "version": "1.6.0",
+  "version": "1.6.1",
   "minSupVersion": "13.0.0",
   "description": "Month-calendar board for Super Productivity that shows only deadline todos (tasks tagged DDL with a due date/time), with in-cell create, click-to-edit, overdue highlighting and customizable colors. Todos remain regular tasks, so they still appear in Today/Inbox.",
   "author": "Qoder",

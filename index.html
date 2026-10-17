@@ -288,15 +288,69 @@
   var popMode = 'create'; // 'create' | 'edit'
   var popTaskId = null;
 
-  // ---- 国际化：字符串一律走宿主翻译 ----
+  // ---- 国际化 ----
+  // 注意：iframe 桥接层里 PluginAPI.translate() 返回 Promise（异步），
+  // 因此启动时把所有键翻译进 STR 缓存，运行期同步取用；参数替换在本地完成。
+  var EN_FALLBACK = {
+    'PLUGIN.NAME': 'DDL Todo Board',
+    'UI.PREV_MONTH': 'Previous month',
+    'UI.NEXT_MONTH': 'Next month',
+    'UI.BACK_TO_TODAY': 'Back to current month',
+    'UI.COLORS': 'Colors',
+    'UI.WD_1': 'Mon', 'UI.WD_2': 'Tue', 'UI.WD_3': 'Wed', 'UI.WD_4': 'Thu',
+    'UI.WD_5': 'Fri', 'UI.WD_6': 'Sat', 'UI.WD_7': 'Sun',
+    'UI.MN_1': 'Jan', 'UI.MN_2': 'Feb', 'UI.MN_3': 'Mar', 'UI.MN_4': 'Apr',
+    'UI.MN_5': 'May', 'UI.MN_6': 'Jun', 'UI.MN_7': 'Jul', 'UI.MN_8': 'Aug',
+    'UI.MN_9': 'Sep', 'UI.MN_10': 'Oct', 'UI.MN_11': 'Nov', 'UI.MN_12': 'Dec',
+    'UI.MONTH_LABEL': '{{monthName}} {{year}}',
+    'UI.EMPTY': 'No DDL todos this month. Hover a day cell and click the + to create one.',
+    'UI.POP_CREATE': 'New todo',
+    'UI.POP_EDIT': 'Edit todo',
+    'UI.TITLE_PLACEHOLDER': 'Todo title (required)',
+    'UI.DATE_TITLE': 'Due date (required)',
+    'UI.TIME_TITLE': 'Due time (optional; empty = all day)',
+    'UI.CANCEL': 'Cancel',
+    'UI.CONFIRM': 'OK',
+    'UI.COLORS_TODO': 'Todos',
+    'UI.COLORS_DONE': 'Completed',
+    'UI.TOOLTIP_ADD': 'New todo on {{date}}',
+    'UI.TOOLTIP_EDIT': 'Click to edit',
+    'UI.TOOLTIP_DELETE': 'Delete this todo',
+    'UI.TOOLTIP_DONE': 'Mark done',
+    'UI.TOOLTIP_UNDONE': 'Mark not done',
+    'UI.DUE_WITH_TIME': 'Due: {{date}} {{time}}',
+    'UI.DUE_ALLDAY': 'Due: {{date}} (all day)',
+    'UI.CONFIRM_DELETE': 'Delete todo "{{title}}"? This deletes the underlying task.',
+    'MSG.NO_API': 'PluginAPI not found: open this plugin inside Super Productivity.',
+    'MSG.LOAD_FAIL': 'Failed to load tasks: {{msg}}',
+    'MSG.UPDATE_FAIL': 'Update failed: {{msg}}',
+    'MSG.DELETE_FAIL': 'Delete failed: {{msg}}',
+    'MSG.CREATE_FAIL': 'Create failed: {{msg}}',
+    'MSG.SAVE_FAIL': 'Save failed: {{msg}}',
+    'MSG.INIT_FAIL': 'Initialization failed: {{msg}}',
+  };
+  var STR = {};
+  Object.keys(EN_FALLBACK).forEach(function (k) { STR[k] = EN_FALLBACK[k]; });
+
+  function loadStrings() {
+    if (typeof PluginAPI === 'undefined' || typeof PluginAPI.translate !== 'function') {
+      return Promise.resolve();
+    }
+    return Promise.all(Object.keys(EN_FALLBACK).map(function (k) {
+      return Promise.resolve(PluginAPI.translate(k)).then(function (v) {
+        if (typeof v === 'string' && v && v !== k) STR[k] = v;
+      }).catch(function () { /* 保留英文回退 */ });
+    }));
+  }
+
   function tr(key, params) {
-    try {
-      if (typeof PluginAPI !== 'undefined' && typeof PluginAPI.translate === 'function') {
-        var s = PluginAPI.translate(key, params);
-        if (s && s !== key) return s;
-      }
-    } catch (e) { /* 回退为键名 */ }
-    return key;
+    var s = STR[key] || EN_FALLBACK[key] || key;
+    if (params) {
+      Object.keys(params).forEach(function (p) {
+        s = s.split('{{' + p + '}}').join(String(params[p]));
+      });
+    }
+    return s;
   }
 
   function applyStaticStrings() {
@@ -731,10 +785,11 @@
       return;
     }
     buildSwatches();
-    applyStaticStrings();
-    ensureTag()
-      .then(loadColors)
-      .then(reload)
+    loadStrings()
+      .then(function () {
+        applyStaticStrings();
+        return ensureTag().then(loadColors).then(reload);
+      })
       .then(function () {
         var H = PluginAPI.Hooks;
         var pending = null;
@@ -750,8 +805,10 @@
         });
         try {
           PluginAPI.registerHook(H.LANGUAGE_CHANGE, function () {
-            applyStaticStrings();
-            render();
+            loadStrings().then(function () {
+              applyStaticStrings();
+              render();
+            });
           });
         } catch (e) { /* 宿主不支持时忽略 */ }
       })
