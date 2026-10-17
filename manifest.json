@@ -5,7 +5,7 @@
   "version": "1.6.5",
   "minSupVersion": "13.0.0",
   "description": "Month-calendar board for Super Productivity that shows only deadline todos (tasks tagged DDL with a due date/time), with in-cell create, click-to-edit, overdue highlighting and customizable colors. Todos remain regular tasks, so they still appear in Today/Inbox.",
-  "author": "Qoder",
+  "author": "little-tiger001",
   "hooks": ["taskCreated", "taskUpdate", "taskDelete", "anyTaskUpdate", "languageChange"],
   "permissions": [
     "getTasks",
