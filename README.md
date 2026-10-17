@@ -24,16 +24,18 @@ Requires Super Productivity ≥ 13.0.0 (developed and tested on 19.2.0).
 
 - The board lives in the main content area as its own view (left-sidebar entry), not in the built-in Schedule view — plugins cannot modify core views.
 - The `DDL` tag is created automatically on first run and its id is remembered, so renaming the tag later is safe.
-- UI strings are currently Chinese-only; the plugin structure follows the standard `manifest.json` + `index.html` iframe layout.
+- The UI follows the Super Productivity interface language (English and Simplified Chinese are bundled via the plugin `i18n/` folder; switching the app language live-updates the board).
 
 ## Development
 
 Source layout (zip root must contain these three files):
 
 ```
-manifest.json   plugin metadata, permissions, hooks
+manifest.json   plugin metadata, permissions, hooks, i18n languages
 index.html      the calendar board (iframe UI)
 icon.svg        sidebar icon (fill-based outline, immune to host fill overrides)
+i18n/en.json    English strings
+i18n/zh.json    Simplified Chinese strings
 ```
 
-Pack with: `Compress-Archive -Path manifest.json,index.html,icon.svg -DestinationPath ddl-todos-board.zip`
+Pack with: `Compress-Archive -Path manifest.json,index.html,icon.svg,i18n -DestinationPath ddl-todos-board.zip`

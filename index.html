@@ -229,37 +229,37 @@
 <body>
 
 <header class="bar">
-  <button id="prev" title="上个月">‹</button>
+  <button id="prev">‹</button>
   <strong id="monthLabel"></strong>
-  <button id="next" title="下个月">›</button>
-  <button id="todayBtn">回到今月</button>
+  <button id="next">›</button>
+  <button id="todayBtn"></button>
   <span class="spacer"></span>
-  <button id="colorBtn">配色</button>
+  <button id="colorBtn"></button>
 </header>
 
 <div id="colorPanel">
-  <div class="crow"><span>待办</span><div class="swatches" data-group="todo"></div></div>
-  <div class="crow"><span>已完成</span><div class="swatches" data-group="done"></div></div>
+  <div class="crow"><span id="colorLabelTodo"></span><div class="swatches" data-group="todo"></div></div>
+  <div class="crow"><span id="colorLabelDone"></span><div class="swatches" data-group="done"></div></div>
 </div>
 
 <div id="status"></div>
 
-<div class="weekdays">
-  <span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span>
+<div class="weekdays" id="weekdays">
+  <span></span><span></span><span></span><span></span><span></span><span></span><span></span>
 </div>
 <div class="scroll" id="scroll">
   <div class="grid" id="grid"></div>
-  <div id="empty" style="display:none">本月没有 DDL 待办。把鼠标移到某天格子上，点右上角的 ＋ 即可新建。</div>
+  <div id="empty" style="display:none"></div>
 </div>
 
 <div id="pop">
-  <div class="pop-date" id="popHead">新建待办</div>
-  <input id="popTitle" type="text" placeholder="待办标题（必填）">
-  <input id="popDateIn" type="date" title="截止日期（必填）">
-  <input id="popTime" type="time" title="截止时间（可选，不填则为全天）">
+  <div class="pop-date" id="popHead"></div>
+  <input id="popTitle" type="text">
+  <input id="popDateIn" type="date">
+  <input id="popTime" type="time">
   <div class="pop-btns">
-    <button id="popCancel">取消</button>
-    <button id="popOk">确认</button>
+    <button id="popCancel"></button>
+    <button id="popOk"></button>
   </div>
 </div>
 
@@ -287,6 +287,35 @@
   var popTimeEl = document.getElementById('popTime');
   var popMode = 'create'; // 'create' | 'edit'
   var popTaskId = null;
+
+  // ---- 国际化：字符串一律走宿主翻译 ----
+  function tr(key, params) {
+    try {
+      if (typeof PluginAPI !== 'undefined' && typeof PluginAPI.translate === 'function') {
+        var s = PluginAPI.translate(key, params);
+        if (s && s !== key) return s;
+      }
+    } catch (e) { /* 回退为键名 */ }
+    return key;
+  }
+
+  function applyStaticStrings() {
+    document.title = tr('PLUGIN.NAME');
+    document.getElementById('prev').title = tr('UI.PREV_MONTH');
+    document.getElementById('next').title = tr('UI.NEXT_MONTH');
+    document.getElementById('todayBtn').textContent = tr('UI.BACK_TO_TODAY');
+    document.getElementById('colorBtn').textContent = tr('UI.COLORS');
+    document.getElementById('colorLabelTodo').textContent = tr('UI.COLORS_TODO');
+    document.getElementById('colorLabelDone').textContent = tr('UI.COLORS_DONE');
+    var wd = document.querySelectorAll('#weekdays span');
+    for (var i = 0; i < wd.length; i++) wd[i].textContent = tr('UI.WD_' + (i + 1));
+    emptyEl.textContent = tr('UI.EMPTY');
+    popTitleEl.placeholder = tr('UI.TITLE_PLACEHOLDER');
+    popDateInEl.title = tr('UI.DATE_TITLE');
+    popTimeEl.title = tr('UI.TIME_TITLE');
+    document.getElementById('popCancel').textContent = tr('UI.CANCEL');
+    document.getElementById('popOk').textContent = tr('UI.CONFIRM');
+  }
 
   // ---- 配色 ----
   var TONES = ['blue', 'green', 'orange', 'purple', 'teal', 'gray'];
@@ -396,7 +425,7 @@
       });
       render();
     }).catch(function (e) {
-      showError('读取任务失败：' + (e && e.message ? e.message : e));
+      showError(t('MSG.LOAD_FAIL', { msg: e && e.message ? e.message : e }));
     });
   }
 
@@ -446,7 +475,10 @@
   // ---- 渲染 ----
 
   function render() {
-    labelEl.textContent = viewYear + ' 年 ' + (viewMonth + 1) + ' 月';
+    labelEl.textContent = tr('UI.MONTH_LABEL', {
+      year: viewYear,
+      monthName: tr('UI.MN_' + (viewMonth + 1)),
+    });
 
     // 全部显示：未完成在前（按时间），已完成变灰沉底
     var byDate = {};
@@ -509,7 +541,7 @@
     var add = document.createElement('button');
     add.className = 'add';
     add.textContent = '＋';
-    add.title = '在 ' + ds + ' 新建待办';
+    add.title = tr('UI.TOOLTIP_ADD', { date: ds });
     add.addEventListener('click', function (ev) {
       ev.stopPropagation();
       openPop(ds, cell);
@@ -525,15 +557,17 @@
   function renderTodo(t) {
     var el = document.createElement('div');
     el.className = 'todo' + (isOverdue(t) ? ' overdue' : '') + (t.isDone ? ' done' : '');
-    el.title = t.title + (t.dueWithTime ? '\n截止：' + todoDateStr(t) + ' ' + timeLabel(t) : '\n截止：' + (t.dueDay || '') + '（全天）');
+    el.title = t.dueWithTime
+      ? tr('UI.DUE_WITH_TIME', { date: todoDateStr(t), time: timeLabel(t) })
+      : tr('UI.DUE_ALLDAY', { date: t.dueDay || '' });
 
     var cb = document.createElement('input');
     cb.type = 'checkbox';
     cb.checked = !!t.isDone;
-    cb.title = t.isDone ? '取消完成' : '标记完成';
+    cb.title = t.isDone ? tr('UI.TOOLTIP_UNDONE') : tr('UI.TOOLTIP_DONE');
     cb.addEventListener('change', function () {
       PluginAPI.updateTask(t.id, { isDone: cb.checked }).catch(function (e) {
-        showError('更新失败：' + (e && e.message ? e.message : e));
+        showError(tr('MSG.UPDATE_FAIL', { msg: e && e.message ? e.message : e }));
         cb.checked = !cb.checked;
       });
     });
@@ -551,7 +585,7 @@
     titleSpan.className = 't';
     titleSpan.textContent = t.title;
     titleSpan.style.cursor = 'pointer';
-    titleSpan.title = '点击编辑';
+    titleSpan.title = tr('UI.TOOLTIP_EDIT');
     titleSpan.addEventListener('click', function () {
       openEditPop(t, el);
     });
@@ -560,11 +594,11 @@
     var del = document.createElement('button');
     del.className = 'del';
     del.textContent = '✕';
-    del.title = '删除此待办';
+    del.title = tr('UI.TOOLTIP_DELETE');
     del.addEventListener('click', function () {
-      if (!window.confirm('删除待办「' + t.title + '」？此操作会删除对应任务。')) return;
+      if (!window.confirm(tr('UI.CONFIRM_DELETE', { title: t.title }))) return;
       PluginAPI.deleteTask(t.id).catch(function (e) {
-        showError('删除失败：' + (e && e.message ? e.message : e));
+        showError(tr('MSG.DELETE_FAIL', { msg: e && e.message ? e.message : e }));
       });
     });
     el.appendChild(del);
@@ -590,7 +624,7 @@
   function openPop(ds, anchorEl) {
     popMode = 'create';
     popTaskId = null;
-    popHeadEl.textContent = '新建待办';
+    popHeadEl.textContent = tr('UI.POP_CREATE');
     popTitleEl.value = '';
     popDateInEl.value = ds;
     popTimeEl.value = '';
@@ -601,7 +635,7 @@
   function openEditPop(t, anchorEl) {
     popMode = 'edit';
     popTaskId = t.id;
-    popHeadEl.textContent = '编辑待办';
+    popHeadEl.textContent = tr('UI.POP_EDIT');
     popTitleEl.value = t.title;
     popDateInEl.value = todoDateStr(t) || fmtDateObj(new Date());
     popTimeEl.value = timeLabel(t);
@@ -634,7 +668,7 @@
       viewMonth = parseInt(parts[1], 10) - 1;
       return reload();
     }).catch(function (e) {
-      showError((isEdit ? '保存失败：' : '新建失败：') + (e && e.message ? e.message : e));
+      showError((isEdit ? tr('MSG.SAVE_FAIL') : tr('MSG.CREATE_FAIL')) + (e && e.message ? e.message : e));
     });
   }
 
@@ -693,10 +727,11 @@
 
   function start() {
     if (typeof PluginAPI === 'undefined') {
-      showError('未检测到 PluginAPI：请在 Super Productivity 中打开本插件页面。');
+      showError('PluginAPI not found: open this plugin inside Super Productivity.');
       return;
     }
     buildSwatches();
+    applyStaticStrings();
     ensureTag()
       .then(loadColors)
       .then(reload)
@@ -713,9 +748,15 @@
         [H.TASK_CREATED, H.TASK_UPDATE, H.TASK_DELETE, H.ANY_TASK_UPDATE].forEach(function (h) {
           try { PluginAPI.registerHook(h, refresh); } catch (e) { /* 忽略单个钩子失败 */ }
         });
+        try {
+          PluginAPI.registerHook(H.LANGUAGE_CHANGE, function () {
+            applyStaticStrings();
+            render();
+          });
+        } catch (e) { /* 宿主不支持时忽略 */ }
       })
       .catch(function (e) {
-        showError('初始化失败：' + (e && e.message ? e.message : e));
+        showError(tr('MSG.INIT_FAIL', { msg: e && e.message ? e.message : e }));
       });
   }
 
