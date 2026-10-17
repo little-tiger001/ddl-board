@@ -372,14 +372,20 @@
   };
   var curLang = 'en';
 
+  // iframe 桥接层里 getCurrentLanguage() 实际返回 Promise（类型文件标注为同步，不可信），
+  // 因此这里统一按异步处理；同步返回值也能被 Promise.resolve 兼容。
   function refreshLang() {
-    var code = 'en';
-    try {
-      if (typeof PluginAPI !== 'undefined' && typeof PluginAPI.getCurrentLanguage === 'function') {
-        code = PluginAPI.getCurrentLanguage() || 'en';
-      }
-    } catch (e) { /* 回退英文 */ }
-    curLang = String(code).indexOf('zh') === 0 ? 'zh' : 'en';
+    return Promise.resolve()
+      .then(function () {
+        if (typeof PluginAPI !== 'undefined' && typeof PluginAPI.getCurrentLanguage === 'function') {
+          return PluginAPI.getCurrentLanguage();
+        }
+        return 'en';
+      })
+      .then(function (code) {
+        curLang = String(code || 'en').indexOf('zh') === 0 ? 'zh' : 'en';
+      })
+      .catch(function () { curLang = 'en'; });
   }
 
   function tr(key, params) {
@@ -825,11 +831,11 @@
       return;
     }
     buildSwatches();
-    refreshLang();
-    applyStaticStrings();
-    ensureTag()
-      .then(loadColors)
-      .then(reload)
+    refreshLang()
+      .then(function () {
+        applyStaticStrings();
+        return ensureTag().then(loadColors).then(reload);
+      })
       .then(function () {
         var H = PluginAPI.Hooks;
         var pending = null;
@@ -845,9 +851,10 @@
         });
         try {
           PluginAPI.registerHook(H.LANGUAGE_CHANGE, function () {
-            refreshLang();
-            applyStaticStrings();
-            render();
+            refreshLang().then(function () {
+              applyStaticStrings();
+              render();
+            });
           });
         } catch (e) { /* 宿主不支持时忽略 */ }
       })
