@@ -374,18 +374,31 @@
 
   // iframe 桥接层里 getCurrentLanguage() 实际返回 Promise（类型文件标注为同步，不可信），
   // 因此这里统一按异步处理；同步返回值也能被 Promise.resolve 兼容。
+  // 双保险：语言码拿不到时用宿主自身文案探测（宿主文案随语言实时切换，含中文即 zh）。
   function refreshLang() {
     return Promise.resolve()
       .then(function () {
         if (typeof PluginAPI !== 'undefined' && typeof PluginAPI.getCurrentLanguage === 'function') {
           return PluginAPI.getCurrentLanguage();
         }
-        return 'en';
+        return null;
       })
       .then(function (code) {
-        curLang = String(code || 'en').indexOf('zh') === 0 ? 'zh' : 'en';
+        if (typeof code === 'string' && code) {
+          curLang = code.indexOf('zh') === 0 ? 'zh' : 'en';
+          return null;
+        }
+        if (typeof PluginAPI === 'undefined' || typeof PluginAPI.translate !== 'function') return null;
+        var PROBE = 'GCF.APP_FEATURES.PLANNER';
+        return Promise.resolve(PluginAPI.translate(PROBE))
+          .catch(function () { return null; })
+          .then(function (v) {
+            if (typeof v === 'string' && v !== PROBE) {
+              curLang = /[一-鿿]/.test(v) ? 'zh' : 'en';
+            }
+          });
       })
-      .catch(function () { curLang = 'en'; });
+      .catch(function () { /* 保持当前语言 */ });
   }
 
   function tr(key, params) {
@@ -857,6 +870,16 @@
             });
           });
         } catch (e) { /* 宿主不支持时忽略 */ }
+        // 兜底轮询：个别情况下 languageChange 钩子不触发（视图常驻时切语言）
+        setInterval(function () {
+          var prev = curLang;
+          refreshLang().then(function () {
+            if (curLang !== prev) {
+              applyStaticStrings();
+              render();
+            }
+          });
+        }, 5000);
       })
       .catch(function (e) {
         showError(tr('MSG.INIT_FAIL', { msg: e && e.message ? e.message : e }));

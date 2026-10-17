@@ -12,6 +12,12 @@ A month-calendar board plugin for [Super Productivity](https://github.com/super-
 - **Real tasks under the hood**: a todo is a normal task with the `DDL` tag plus `dueDay`/`dueWithTime`, so it shows up in Today, Inbox, Planner and everywhere else. Tagging any existing task with `DDL` puts it on the board too.
 - **Live refresh**: task create/update/delete hooks keep the board in sync with edits made in other views.
 
+## Screenshot
+
+English UI — month board with deadline todos; completed items greyed and sunk to the bottom of their day, overdue items in red:
+
+![DDL Todo Board (English UI)](docs/screenshot-en.png)
+
 ## Install
 
 1. Download `ddl-todos-board.zip` from the [latest release](https://github.com/little-tiger001/ddl-todos-board/releases).
