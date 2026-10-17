@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DDL 待办</title>
+<style>
+  :root {
+    --bg: #ffffff;
+    --fg: #1f1f1f;
+    --muted: #8a8a8a;
+    --line: #e3e3e3;
+    --cell-bg: #fafafa;
+    --accent: #3f6ad8;
+    --accent-soft: #e8eefc;
+    --danger: #d84343;
+    --danger-soft: #fdecec;
+    --done-fg: #9a9a9a;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1e1e1e;
+      --fg: #e8e8e8;
+      --muted: #9a9a9a;
+      --line: #3a3a3a;
+      --cell-bg: #262626;
+      --accent: #7c9bff;
+      --accent-soft: #2a3350;
+      --danger: #ff7a7a;
+      --danger-soft: #4a2626;
+      --done-fg: #6f6f6f;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--fg);
+    font-size: 13px;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  header.bar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    border-bottom: 1px solid var(--line);
+    flex: 0 0 auto;
+  }
+  header.bar strong { font-size: 14px; min-width: 88px; text-align: center; }
+  header.bar button {
+    border: 1px solid var(--line);
+    background: transparent;
+    color: var(--fg);
+    border-radius: 6px;
+    padding: 2px 10px;
+    cursor: pointer;
+    font-size: 13px;
+  }
+  header.bar button:hover { background: var(--cell-bg); }
+  header.bar .spacer { flex: 1; }
+  header.bar label { color: var(--muted); display: flex; align-items: center; gap: 4px; cursor: pointer; }
+
+  div.weekdays, div.grid { display: grid; grid-template-columns: repeat(7, 1fr); }
+  div.weekdays {
+    flex: 0 0 auto;
+    border-bottom: 1px solid var(--line);
+    color: var(--muted);
+    text-align: center;
+    padding: 4px 0;
+  }
+  div.scroll { flex: 1 1 auto; overflow-y: auto; display: flex; flex-direction: column; }
+  div.grid { flex: 1 0 auto; grid-auto-rows: minmax(96px, 1fr); }
+  div.cell {
+    border-right: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+    padding: 3px 4px;
+    background: var(--cell-bg);
+    min-width: 0;
+  }
+  div.cell:nth-child(7n) { border-right: none; }
+  div.cell.other-month { opacity: 0.35; }
+  div.cell.today { outline: 2px solid var(--accent); outline-offset: -2px; }
+  div.cellhead { display: flex; align-items: center; margin-bottom: 2px; }
+  div.cell .dnum { font-size: 12px; color: var(--muted); flex: 1; }
+  div.cell.today .dnum { color: var(--accent); font-weight: 700; }
+
+  button.add {
+    border: none;
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 18px;
+    font-weight: 700;
+    line-height: 1;
+    padding: 1px 8px;
+    border-radius: 6px;
+    opacity: 0;
+  }
+  div.cell:hover button.add { opacity: 1; }
+  button.add:hover { color: var(--accent); background: var(--accent-soft); }
+
+  .todo {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    border-radius: 5px;
+    padding: 2px 4px;
+    margin-bottom: 2px;
+    background: var(--todo-bg, #e8eefc);
+    font-size: 12px;
+    line-height: 1.5;
+  }
+  .todo.overdue { background: var(--danger-soft); color: var(--danger); }
+  .todo.done { background: var(--done-bg, #e6f4ea); }
+  .todo.done .t { text-decoration: line-through; color: var(--done-fg); }
+  .todo input[type="checkbox"] { margin: 0; flex: 0 0 auto; accent-color: var(--accent); }
+  .todo .time { color: var(--muted); flex: 0 0 auto; }
+  .todo.overdue .time { color: var(--danger); }
+  .todo .t { flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .todo .del {
+    border: none; background: transparent; color: var(--muted);
+    cursor: pointer; padding: 0 2px; font-size: 12px; flex: 0 0 auto; visibility: hidden;
+  }
+  .todo:hover .del { visibility: visible; }
+  .todo .del:hover { color: var(--danger); }
+
+  /* 配色：待办与已完成的底色预设（浅色） */
+  body.tone-blue { --todo-bg: #e8eefc; }
+  body.tone-green { --todo-bg: #e6f4ea; }
+  body.tone-orange { --todo-bg: #fdeede; }
+  body.tone-purple { --todo-bg: #efe7fb; }
+  body.tone-teal { --todo-bg: #e0f4f4; }
+  body.tone-gray { --todo-bg: #eeeeee; }
+  body.done-tone-blue { --done-bg: #e8eefc; }
+  body.done-tone-green { --done-bg: #e6f4ea; }
+  body.done-tone-orange { --done-bg: #fdeede; }
+  body.done-tone-purple { --done-bg: #efe7fb; }
+  body.done-tone-teal { --done-bg: #e0f4f4; }
+  body.done-tone-gray { --done-bg: #ececec; }
+  @media (prefers-color-scheme: dark) {
+    body.tone-blue { --todo-bg: #2a3350; }
+    body.tone-green { --todo-bg: #24402c; }
+    body.tone-orange { --todo-bg: #4a341f; }
+    body.tone-purple { --todo-bg: #372c4d; }
+    body.tone-teal { --todo-bg: #1f3d3d; }
+    body.tone-gray { --todo-bg: #333333; }
+    body.done-tone-blue { --done-bg: #242c44; }
+    body.done-tone-green { --done-bg: #203626; }
+    body.done-tone-orange { --done-bg: #40301f; }
+    body.done-tone-purple { --done-bg: #302844; }
+    body.done-tone-teal { --done-bg: #1c3434; }
+    body.done-tone-gray { --done-bg: #2e2e2e; }
+  }
+
+  /* 配色面板 */
+  #colorPanel {
+    position: fixed;
+    top: 44px;
+    right: 10px;
+    z-index: 11;
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    box-shadow: 0 6px 24px rgba(0,0,0,0.18);
+    padding: 10px;
+    display: none;
+  }
+  #colorPanel .crow { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  #colorPanel .crow:last-child { margin-bottom: 0; }
+  #colorPanel .crow > span { color: var(--muted); font-size: 12px; width: 38px; }
+  #colorPanel .swatches { display: flex; gap: 6px; }
+  .sw {
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    cursor: pointer;
+    padding: 0;
+  }
+  .sw.sel { border-color: var(--accent); }
+
+  /* 格点旁的迷你新建卡片 */
+  #pop {
+    position: fixed;
+    z-index: 10;
+    width: 232px;
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    box-shadow: 0 6px 24px rgba(0,0,0,0.18);
+    padding: 10px;
+    display: none;
+  }
+  #pop .pop-date { color: var(--muted); font-size: 12px; margin-bottom: 6px; }
+  #pop input {
+    width: 100%;
+    border: 1px solid var(--line);
+    background: var(--cell-bg);
+    color: var(--fg);
+    border-radius: 6px;
+    padding: 5px 8px;
+    font-size: 13px;
+    margin-bottom: 6px;
+  }
+  #pop .pop-btns { display: flex; justify-content: flex-end; gap: 6px; }
+  #pop .pop-btns button {
+    border-radius: 6px;
+    padding: 4px 12px;
+    cursor: pointer;
+    font-size: 13px;
+  }
+  #popCancel { border: 1px solid var(--line); background: transparent; color: var(--fg); }
+  #popOk { border: none; background: var(--accent); color: #fff; }
+
+  #empty {
+    padding: 24px 12px; text-align: center; color: var(--muted);
+  }
+  #status {
+    padding: 4px 10px; color: var(--danger); font-size: 12px; display: none;
+    border-bottom: 1px solid var(--line);
+  }
+</style>
+</head>
+<body>
+
+<header class="bar">
+  <button id="prev" title="上个月">‹</button>
+  <strong id="monthLabel"></strong>
+  <button id="next" title="下个月">›</button>
+  <button id="todayBtn">回到今月</button>
+  <span class="spacer"></span>
+  <button id="colorBtn">配色</button>
+</header>
+
+<div id="colorPanel">
+  <div class="crow"><span>待办</span><div class="swatches" data-group="todo"></div></div>
+  <div class="crow"><span>已完成</span><div class="swatches" data-group="done"></div></div>
+</div>
+
+<div id="status"></div>
+
+<div class="weekdays">
+  <span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span>
+</div>
+<div class="scroll" id="scroll">
+  <div class="grid" id="grid"></div>
+  <div id="empty" style="display:none">本月没有 DDL 待办。把鼠标移到某天格子上，点右上角的 ＋ 即可新建。</div>
+</div>
+
+<div id="pop">
+  <div class="pop-date" id="popHead">新建待办</div>
+  <input id="popTitle" type="text" placeholder="待办标题（必填）">
+  <input id="popDateIn" type="date" title="截止日期（必填）">
+  <input id="popTime" type="time" title="截止时间（可选，不填则为全天）">
+  <div class="pop-btns">
+    <button id="popCancel">取消</button>
+    <button id="popOk">确认</button>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var TAG_TITLE = 'DDL';
+  var tagId = null;
+  var todos = [];
+
+  var now0 = new Date();
+  var viewYear = now0.getFullYear();
+  var viewMonth = now0.getMonth(); // 0-based
+
+  var gridEl = document.getElementById('grid');
+  var emptyEl = document.getElementById('empty');
+  var labelEl = document.getElementById('monthLabel');
+  var statusEl = document.getElementById('status');
+
+  var popEl = document.getElementById('pop');
+  var popHeadEl = document.getElementById('popHead');
+  var popTitleEl = document.getElementById('popTitle');
+  var popDateInEl = document.getElementById('popDateIn');
+  var popTimeEl = document.getElementById('popTime');
+  var popMode = 'create'; // 'create' | 'edit'
+  var popTaskId = null;
+
+  // ---- 配色 ----
+  var TONES = ['blue', 'green', 'orange', 'purple', 'teal', 'gray'];
+  var TONE_PREVIEW = {
+    blue: '#e8eefc', green: '#e6f4ea', orange: '#fdeede',
+    purple: '#efe7fb', teal: '#e0f4f4', gray: '#eeeeee',
+  };
+  var colors = { todo: 'blue', done: 'green' };
+  var colorPanelEl = document.getElementById('colorPanel');
+
+  function applyColors() {
+    TONES.forEach(function (t) {
+      document.body.classList.remove('tone-' + t);
+      document.body.classList.remove('done-tone-' + t);
+    });
+    document.body.classList.add('tone-' + colors.todo);
+    document.body.classList.add('done-tone-' + colors.done);
+    markSwatches();
+  }
+
+  function markSwatches() {
+    document.querySelectorAll('#colorPanel .swatches').forEach(function (sw) {
+      var group = sw.getAttribute('data-group');
+      Array.prototype.forEach.call(sw.children, function (b, i) {
+        b.classList.toggle('sel', TONES[i] === colors[group]);
+      });
+    });
+  }
+
+  function buildSwatches() {
+    document.querySelectorAll('#colorPanel .swatches').forEach(function (sw) {
+      var group = sw.getAttribute('data-group');
+      TONES.forEach(function (t) {
+        var b = document.createElement('button');
+        b.className = 'sw';
+        b.style.background = TONE_PREVIEW[t];
+        b.title = t;
+        b.addEventListener('click', function () {
+          colors[group] = t;
+          applyColors();
+          PluginAPI.persistDataSynced(JSON.stringify(colors), 'colors').catch(function () {});
+        });
+        sw.appendChild(b);
+      });
+    });
+  }
+
+  function loadColors() {
+    return PluginAPI.loadSyncedData('colors').then(function (saved) {
+      if (saved) {
+        try {
+          var parsed = JSON.parse(saved);
+          if (parsed && TONES.indexOf(parsed.todo) !== -1) colors.todo = parsed.todo;
+          if (parsed && TONES.indexOf(parsed.done) !== -1) colors.done = parsed.done;
+        } catch (e) { /* 忽略损坏的配色数据 */ }
+      }
+      applyColors();
+    });
+  }
+
+  function toggleColorPanel() {
+    colorPanelEl.style.display = colorPanelEl.style.display === 'none' ? 'block' : 'none';
+  }
+  function closeColorPanel() {
+    colorPanelEl.style.display = 'none';
+  }
+
+  function pad2(n) { return (n < 10 ? '0' : '') + n; }
+  function fmtDate(y, m, d) { return y + '-' + pad2(m + 1) + '-' + pad2(d); }
+  function fmtDateObj(d) { return fmtDate(d.getFullYear(), d.getMonth(), d.getDate()); }
+
+  function showError(msg) {
+    statusEl.textContent = msg;
+    statusEl.style.display = 'block';
+  }
+
+  // ---- 数据层 ----
+
+  function ensureTag() {
+    return PluginAPI.loadSyncedData('tagId')
+      .then(function (saved) {
+        return PluginAPI.getAllTags().then(function (tags) {
+          var hit = null;
+          if (saved) {
+            hit = tags.find(function (t) { return t.id === saved; }) || null;
+          }
+          if (!hit) {
+            hit = tags.find(function (t) { return t.title === TAG_TITLE; }) || null;
+          }
+          if (hit) {
+            tagId = hit.id;
+            if (saved !== tagId) return PluginAPI.persistDataSynced(tagId, 'tagId');
+            return null;
+          }
+          return PluginAPI.addTag({ title: TAG_TITLE }).then(function (id) {
+            tagId = id;
+            return PluginAPI.persistDataSynced(tagId, 'tagId');
+          });
+        });
+      });
+  }
+
+  function reload() {
+    return PluginAPI.getTasks().then(function (all) {
+      todos = all.filter(function (t) {
+        return t.tagIds && t.tagIds.indexOf(tagId) !== -1 && !t.parentId;
+      });
+      render();
+    }).catch(function (e) {
+      showError('读取任务失败：' + (e && e.message ? e.message : e));
+    });
+  }
+
+  // 任务的“DDL 日期”：dueWithTime（带时间）优先，否则 dueDay（全天）
+  function todoDateStr(t) {
+    if (t.dueWithTime) return fmtDateObj(new Date(t.dueWithTime));
+    return t.dueDay || null;
+  }
+
+  function isOverdue(t) {
+    if (t.isDone) return false;
+    var now = new Date();
+    if (t.dueWithTime) return t.dueWithTime < now.getTime();
+    if (t.dueDay) return t.dueDay < fmtDateObj(now);
+    return false;
+  }
+
+  function timeLabel(t) {
+    if (!t.dueWithTime) return '';
+    var d = new Date(t.dueWithTime);
+    return pad2(d.getHours()) + ':' + pad2(d.getMinutes());
+  }
+
+  function createTodo(title, dateStr, timeStr) {
+    if (timeStr) {
+      // 带具体时间：先建任务，再写 dueWithTime（与 dueDay 互斥）
+      var ts = new Date(dateStr + 'T' + timeStr + ':00').getTime();
+      return PluginAPI.addTask({ title: title, tagIds: [tagId] }).then(function (id) {
+        return PluginAPI.updateTask(id, { dueWithTime: ts, dueDay: null });
+      });
+    }
+    return PluginAPI.addTask({ title: title, tagIds: [tagId], dueDay: dateStr });
+  }
+
+  function updateTodo(id, title, dateStr, timeStr) {
+    var upd = { title: title };
+    if (timeStr) {
+      upd.dueWithTime = new Date(dateStr + 'T' + timeStr + ':00').getTime();
+      upd.dueDay = null;
+    } else {
+      upd.dueDay = dateStr;
+      upd.dueWithTime = null;
+    }
+    return PluginAPI.updateTask(id, upd);
+  }
+
+  // ---- 渲染 ----
+
+  function render() {
+    labelEl.textContent = viewYear + ' 年 ' + (viewMonth + 1) + ' 月';
+
+    // 全部显示：未完成在前（按时间），已完成变灰沉底
+    var byDate = {};
+    todos.forEach(function (t) {
+      var ds = todoDateStr(t);
+      if (!ds) return;
+      (byDate[ds] = byDate[ds] || []).push(t);
+    });
+    Object.keys(byDate).forEach(function (k) {
+      byDate[k].sort(function (a, b) {
+        if (!!a.isDone !== !!b.isDone) return a.isDone ? 1 : -1;
+        return (a.dueWithTime || 0) - (b.dueWithTime || 0);
+      });
+    });
+
+    gridEl.innerHTML = '';
+
+    var first = new Date(viewYear, viewMonth, 1);
+    var startOffset = (first.getDay() + 6) % 7; // 周一开头
+    var daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+    var prevMonthDays = new Date(viewYear, viewMonth, 0).getDate();
+    var totalCells = Math.ceil((startOffset + daysInMonth) / 7) * 7;
+    var todayStr = fmtDateObj(new Date());
+    var monthHasTodos = false;
+
+    for (var i = 0; i < totalCells; i++) {
+      var y = viewYear, m = viewMonth, d, other = false;
+      if (i < startOffset) {
+        d = prevMonthDays - startOffset + 1 + i;
+        m = viewMonth - 1; other = true;
+      } else if (i >= startOffset + daysInMonth) {
+        d = i - startOffset - daysInMonth + 1;
+        m = viewMonth + 1; other = true;
+      } else {
+        d = i - startOffset + 1;
+      }
+      if (m < 0) { m = 11; y--; }
+      if (m > 11) { m = 0; y++; }
+      gridEl.appendChild(renderCell(fmtDate(y, m, d), d, other, byDate, todayStr));
+      if (!other && (byDate[fmtDate(y, m, d)] || []).length) monthHasTodos = true;
+    }
+
+    emptyEl.style.display = monthHasTodos ? 'none' : 'block';
+  }
+
+  function renderCell(ds, dayNum, other, byDate, todayStr) {
+    var cell = document.createElement('div');
+    cell.className = 'cell';
+    if (other) cell.classList.add('other-month');
+    if (ds === todayStr) cell.classList.add('today');
+
+    var head = document.createElement('div');
+    head.className = 'cellhead';
+
+    var dnum = document.createElement('span');
+    dnum.className = 'dnum';
+    dnum.textContent = dayNum;
+    head.appendChild(dnum);
+
+    var add = document.createElement('button');
+    add.className = 'add';
+    add.textContent = '＋';
+    add.title = '在 ' + ds + ' 新建待办';
+    add.addEventListener('click', function (ev) {
+      ev.stopPropagation();
+      openPop(ds, cell);
+    });
+    head.appendChild(add);
+
+    cell.appendChild(head);
+
+    (byDate[ds] || []).forEach(function (t) { cell.appendChild(renderTodo(t)); });
+    return cell;
+  }
+
+  function renderTodo(t) {
+    var el = document.createElement('div');
+    el.className = 'todo' + (isOverdue(t) ? ' overdue' : '') + (t.isDone ? ' done' : '');
+    el.title = t.title + (t.dueWithTime ? '\n截止：' + todoDateStr(t) + ' ' + timeLabel(t) : '\n截止：' + (t.dueDay || '') + '（全天）');
+
+    var cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = !!t.isDone;
+    cb.title = t.isDone ? '取消完成' : '标记完成';
+    cb.addEventListener('change', function () {
+      PluginAPI.updateTask(t.id, { isDone: cb.checked }).catch(function (e) {
+        showError('更新失败：' + (e && e.message ? e.message : e));
+        cb.checked = !cb.checked;
+      });
+    });
+    el.appendChild(cb);
+
+    var tl = timeLabel(t);
+    if (tl) {
+      var timeSpan = document.createElement('span');
+      timeSpan.className = 'time';
+      timeSpan.textContent = tl;
+      el.appendChild(timeSpan);
+    }
+
+    var titleSpan = document.createElement('span');
+    titleSpan.className = 't';
+    titleSpan.textContent = t.title;
+    titleSpan.style.cursor = 'pointer';
+    titleSpan.title = '点击编辑';
+    titleSpan.addEventListener('click', function () {
+      openEditPop(t, el);
+    });
+    el.appendChild(titleSpan);
+
+    var del = document.createElement('button');
+    del.className = 'del';
+    del.textContent = '✕';
+    del.title = '删除此待办';
+    del.addEventListener('click', function () {
+      if (!window.confirm('删除待办「' + t.title + '」？此操作会删除对应任务。')) return;
+      PluginAPI.deleteTask(t.id).catch(function (e) {
+        showError('删除失败：' + (e && e.message ? e.message : e));
+      });
+    });
+    el.appendChild(del);
+
+    return el;
+  }
+
+  // ---- 格点旁的迷你卡片（新建 / 编辑共用） ----
+
+  function placePop(anchorEl) {
+    popEl.style.display = 'block';
+    var r = anchorEl.getBoundingClientRect();
+    var pw = popEl.offsetWidth, ph = popEl.offsetHeight;
+    var left = r.left + 10;
+    if (left + pw > window.innerWidth - 8) left = window.innerWidth - pw - 8;
+    var top = r.top + 30;
+    if (top + ph > window.innerHeight - 8) top = r.bottom - ph - 8;
+    if (top < 8) top = 8;
+    popEl.style.left = left + 'px';
+    popEl.style.top = top + 'px';
+  }
+
+  function openPop(ds, anchorEl) {
+    popMode = 'create';
+    popTaskId = null;
+    popHeadEl.textContent = '新建待办';
+    popTitleEl.value = '';
+    popDateInEl.value = ds;
+    popTimeEl.value = '';
+    placePop(anchorEl);
+    setTimeout(function () { popTitleEl.focus(); }, 0);
+  }
+
+  function openEditPop(t, anchorEl) {
+    popMode = 'edit';
+    popTaskId = t.id;
+    popHeadEl.textContent = '编辑待办';
+    popTitleEl.value = t.title;
+    popDateInEl.value = todoDateStr(t) || fmtDateObj(new Date());
+    popTimeEl.value = timeLabel(t);
+    placePop(anchorEl);
+    setTimeout(function () { popTitleEl.focus(); popTitleEl.select(); }, 0);
+  }
+
+  function closePop() {
+    popEl.style.display = 'none';
+  }
+
+  function submitPop() {
+    var title = popTitleEl.value.trim();
+    if (!title) { popTitleEl.focus(); return; }
+    var ds = popDateInEl.value;
+    if (!ds) { popDateInEl.focus(); return; }
+    var time = popTimeEl.value;
+    var isEdit = popMode === 'edit' && popTaskId;
+    var taskId = popTaskId;
+    closePop();
+
+    var p = isEdit
+      ? updateTodo(taskId, title, ds, time)
+      : createTodo(title, ds, time);
+
+    p.then(function () {
+      // 跳到待办所在月份
+      var parts = ds.split('-');
+      viewYear = parseInt(parts[0], 10);
+      viewMonth = parseInt(parts[1], 10) - 1;
+      return reload();
+    }).catch(function (e) {
+      showError((isEdit ? '保存失败：' : '新建失败：') + (e && e.message ? e.message : e));
+    });
+  }
+
+  document.getElementById('popOk').addEventListener('click', submitPop);
+  document.getElementById('popCancel').addEventListener('click', closePop);
+  popTitleEl.addEventListener('keydown', function (ev) {
+    if (ev.key === 'Enter') { ev.preventDefault(); submitPop(); }
+  });
+  popDateInEl.addEventListener('keydown', function (ev) {
+    if (ev.key === 'Enter') { ev.preventDefault(); submitPop(); }
+  });
+  popTimeEl.addEventListener('keydown', function (ev) {
+    if (ev.key === 'Enter') { ev.preventDefault(); submitPop(); }
+  });
+  document.addEventListener('keydown', function (ev) {
+    if (ev.key === 'Escape' && popEl.style.display !== 'none') closePop();
+  });
+  document.addEventListener('mousedown', function (ev) {
+    if (popEl.style.display !== 'none'
+      && !popEl.contains(ev.target)
+      && !(ev.target.classList && ev.target.classList.contains('add'))) {
+      closePop();
+    }
+    if (colorPanelEl.style.display !== 'none'
+      && !colorPanelEl.contains(ev.target)
+      && ev.target.id !== 'colorBtn') {
+      closeColorPanel();
+    }
+  });
+  document.getElementById('scroll').addEventListener('scroll', closePop);
+
+  // ---- 导航与开关 ----
+
+  document.getElementById('prev').addEventListener('click', function () {
+    closePop();
+    viewMonth--; if (viewMonth < 0) { viewMonth = 11; viewYear--; }
+    render();
+  });
+  document.getElementById('next').addEventListener('click', function () {
+    closePop();
+    viewMonth++; if (viewMonth > 11) { viewMonth = 0; viewYear++; }
+    render();
+  });
+  document.getElementById('todayBtn').addEventListener('click', function () {
+    closePop();
+    var n = new Date();
+    viewYear = n.getFullYear(); viewMonth = n.getMonth();
+    render();
+  });
+
+  document.getElementById('colorBtn').addEventListener('click', function () {
+    toggleColorPanel();
+  });
+
+  // ---- 启动 + 实时刷新 ----
+
+  function start() {
+    if (typeof PluginAPI === 'undefined') {
+      showError('未检测到 PluginAPI：请在 Super Productivity 中打开本插件页面。');
+      return;
+    }
+    buildSwatches();
+    ensureTag()
+      .then(loadColors)
+      .then(reload)
+      .then(function () {
+        var H = PluginAPI.Hooks;
+        var pending = null;
+        var refresh = function () {
+          if (pending) return;
+          pending = setTimeout(function () {
+            pending = null;
+            reload();
+          }, 300);
+        };
+        [H.TASK_CREATED, H.TASK_UPDATE, H.TASK_DELETE, H.ANY_TASK_UPDATE].forEach(function (h) {
+          try { PluginAPI.registerHook(h, refresh); } catch (e) { /* 忽略单个钩子失败 */ }
+        });
+      })
+      .catch(function (e) {
+        showError('初始化失败：' + (e && e.message ? e.message : e));
+      });
+  }
+
+  start();
+})();
+</script>
+</body>
+</html>

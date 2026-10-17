@@ -1,0 +1,25 @@
+{
+  "name": "DDL 待办看板",
+  "id": "ddl-todos-board",
+  "manifestVersion": 1,
+  "version": "1.5.0",
+  "minSupVersion": "13.0.0",
+  "description": "侧边栏月历看板：只显示带截止时间的 DDL 待办，并提供专属的新建待办入口。待办本质是普通任务（打 DDL 标签 + 截止日期），在今天/收件箱等视图照常显示。",
+  "author": "Qoder",
+  "hooks": ["taskCreated", "taskUpdate", "taskDelete", "anyTaskUpdate"],
+  "permissions": [
+    "getTasks",
+    "addTask",
+    "updateTask",
+    "deleteTask",
+    "getAllTags",
+    "addTag",
+    "showSnack",
+    "persistDataSynced",
+    "loadSyncedData",
+    "showIndexHtmlAsView"
+  ],
+  "iFrame": true,
+  "type": "standard",
+  "icon": "icon.svg"
+}
