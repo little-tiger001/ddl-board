@@ -234,6 +234,7 @@
   <button id="next">›</button>
   <button id="todayBtn"></button>
   <span class="spacer"></span>
+  <span id="diag" style="font-size:11px;color:var(--muted)"></span>
   <button id="colorBtn"></button>
 </header>
 
@@ -371,10 +372,15 @@
     },
   };
   var curLang = 'en';
+  var diagEl = null;
+
+  function setLang(l) {
+    curLang = l;
+    if (diagEl) diagEl.textContent = 'v1.6.4 · ' + curLang;
+  }
 
   // iframe 桥接层里 getCurrentLanguage() 实际返回 Promise（类型文件标注为同步，不可信），
   // 因此这里统一按异步处理；同步返回值也能被 Promise.resolve 兼容。
-  // 双保险：语言码拿不到时用宿主自身文案探测（宿主文案随语言实时切换，含中文即 zh）。
   function refreshLang() {
     return Promise.resolve()
       .then(function () {
@@ -385,18 +391,8 @@
       })
       .then(function (code) {
         if (typeof code === 'string' && code) {
-          curLang = code.indexOf('zh') === 0 ? 'zh' : 'en';
-          return null;
+          setLang(code.indexOf('zh') === 0 ? 'zh' : 'en');
         }
-        if (typeof PluginAPI === 'undefined' || typeof PluginAPI.translate !== 'function') return null;
-        var PROBE = 'GCF.APP_FEATURES.PLANNER';
-        return Promise.resolve(PluginAPI.translate(PROBE))
-          .catch(function () { return null; })
-          .then(function (v) {
-            if (typeof v === 'string' && v !== PROBE) {
-              curLang = /[一-鿿]/.test(v) ? 'zh' : 'en';
-            }
-          });
       })
       .catch(function () { /* 保持当前语言 */ });
   }
@@ -844,8 +840,10 @@
       return;
     }
     buildSwatches();
+    diagEl = document.getElementById('diag');
     refreshLang()
       .then(function () {
+        setLang(curLang);
         applyStaticStrings();
         return ensureTag().then(loadColors).then(reload);
       })
@@ -863,14 +861,23 @@
           try { PluginAPI.registerHook(h, refresh); } catch (e) { /* 忽略单个钩子失败 */ }
         });
         try {
-          PluginAPI.registerHook(H.LANGUAGE_CHANGE, function () {
-            refreshLang().then(function () {
+          // 钩子的 payload 直接带新语言码（宿主 effects 里 {code, newLanguage}），
+          // 用它切语言不依赖任何桥接调用
+          PluginAPI.registerHook(H.LANGUAGE_CHANGE, function (payload) {
+            var code = payload && (payload.code || payload.newLanguage);
+            if (typeof code === 'string' && code) {
+              setLang(code.indexOf('zh') === 0 ? 'zh' : 'en');
               applyStaticStrings();
               render();
-            });
+            } else {
+              refreshLang().then(function () {
+                applyStaticStrings();
+                render();
+              });
+            }
           });
         } catch (e) { /* 宿主不支持时忽略 */ }
-        // 兜底轮询：个别情况下 languageChange 钩子不触发（视图常驻时切语言）
+        // 兜底轮询（临时，用于确认钩子是否真的到达 iframe）
         setInterval(function () {
           var prev = curLang;
           refreshLang().then(function () {
