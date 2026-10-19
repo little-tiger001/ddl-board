@@ -20,7 +20,7 @@ English UI — month board with deadline todos; completed items greyed and sunk 
 
 ## Install
 
-1. Download `ddl-todos-board.zip` from the [latest release](https://github.com/little-tiger001/ddl-todos-board/releases).
+1. Download `ddl-board.zip` from the [latest release](https://github.com/little-tiger001/ddl-board/releases).
 2. In Super Productivity: **Settings → Plugins → Choose Plugin File**, pick the zip.
 3. Open **DDL Board** from the left sidebar.
 
@@ -34,7 +34,7 @@ Requires Super Productivity ≥ 13.0.0 (developed and tested on 19.2.0).
 
 ## Development
 
-Source layout (zip root must contain these three files):
+Source layout (zip root must contain these files):
 
 ```
 manifest.json   plugin metadata, permissions, hooks, i18n languages
@@ -44,4 +44,4 @@ i18n/en.json    English strings
 i18n/zh.json    Simplified Chinese strings
 ```
 
-Pack with: `Compress-Archive -Path manifest.json,index.html,icon.svg,i18n -DestinationPath ddl-todos-board.zip`
+Pack with: `Compress-Archive -Path manifest.json,index.html,icon.svg,i18n -DestinationPath ddl-board.zip`

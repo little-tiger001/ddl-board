@@ -1,8 +1,8 @@
 {
   "name": "DDL Board",
-  "id": "ddl-todos-board",
+  "id": "ddl-board",
   "manifestVersion": 1,
-  "version": "1.6.8",
+  "version": "1.7.0",
   "minSupVersion": "13.0.0",
   "description": "Month-calendar board for Super Productivity that shows only deadline todos (tasks tagged DDL with a due date/time), with in-cell create, click-to-edit, overdue highlighting and customizable colors. Todos remain regular tasks, so they still appear in Today/Inbox.",
   "author": "little-tiger001",
